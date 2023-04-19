@@ -1,8 +1,9 @@
+import argparse
+import os
 import time
 import cv2
-import os
 
-def detect_cars(video_path, file_counter):
+def detect_cars(video_path, file_counter, skip_frames):
     print(f'Processing file {file_counter}: {video_path}...')
     # Read the video file
     cap = cv2.VideoCapture(video_path)
@@ -27,7 +28,7 @@ def detect_cars(video_path, file_counter):
         frame_count += 1
 
         # Skip frames if necessary
-        if frame_count % 35 != 0:
+        if frame_count % skip_frames != 0:
             continue
 
         # Apply background subtraction to the frame
@@ -48,7 +49,6 @@ def detect_cars(video_path, file_counter):
             # Only consider contours that are larger than a certain size
             if w * h > 5000:
                 # Let the frame skip a little to capture the car in the middle of the screen
-                skip_frames = 8
                 for i in range(skip_frames):
                     _, frame = cap.read()
                     frame_count += 1
@@ -56,7 +56,8 @@ def detect_cars(video_path, file_counter):
                 # get the filename form the path
                 filename = video_path.split('\\')[-1]
 
-                folder_path = os.path.join(os.path.expanduser('~'), 'Downloads', 'output_' + filename)
+                folder_path = os.path.join(os.path.expanduser('~'), 'output_' + filename)
+
                 if not os.path.exists(folder_path):
                     os.makedirs(folder_path)
                 save_path = os.path.join(folder_path, str(frame_count) + '_car.jpg')
@@ -70,33 +71,49 @@ def detect_cars(video_path, file_counter):
     # Release the video capture object and close all windows
     cap.release()
 
-
-def detect_cars_in_folder(folder_path):
+def detect_cars_in_folder(folder_path, skip_frames):
     # Loop through all files and subfolders in the folder
     file_counter = 0
-    with open('C:\\Users\\hwa_r\\Downloads\\ELTRAK\\video_processing_times.txt', 'w') as f:
+    with open(os.path.join(os.getcwd(), 'video_processing_times.txt'), 'w') as f:
         for root, dirs, files in os.walk(folder_path):
             for file in files:
                 # Check if the file is a video file
-                if file.endswith('.mp4') or file.endswith('.avi'):
+                if file.endswith('.mp4') or file.endswith('.avi') or file.endswith('.dav'):
                     # Call the detect_cars function on the video file and measure the elapsed time
                     print(f'Processing file {file_counter}: {file}...')
                     video_path = os.path.join(root, file)
                     start_time = time.time()
-                    detect_cars(video_path, file_counter)
+                    detect_cars(video_path, file_counter, skip_frames)
                     file_counter += 1
                     elapsed_time = time.time() - start_time
-                    print(f'Elapsed time: {elapsed_time:.2f} seconds , filename: {file}')
+                    print(f'Elapsed time: {elapsed_time:.2f} seconds, filename: {file}')
                     # Write the filename and elapsed time to the text file
                     f.write(f'{file}: {elapsed_time:.2f} seconds\n')
+                else:
+                    print('File is not a video file or not supported(yet): ' + file)
+
+
 
 if __name__ == '__main__':
     print('Starting video processing...')
+    # Create argument parser
+    parser = argparse.ArgumentParser(description='Detect cars in videos and capture screenshots.')
+    parser.add_argument('--folder_path', '-fpath', type=str, help='Path to the folder containing the videos.')
+    parser.add_argument('--skip_frames', '-sf', type=int, default=35, help='Number of frames to skip before checking for cars.')
+    args = parser.parse_args()
+
+    # Prompt user to enter folder path if not provided
+    if not args.folder_path:
+        folder_path = input('Enter the path to the folder containing the videos: ')
+    else:
+        folder_path = args.folder_path
+
     # Call the detect_cars_in_folder function on the folder containing the videos
-    folder_path = 'C:\\Users\\hwa_r\\Downloads\\ELTRAK\\K5'
-    print('Processing folder: ' + folder_path)
+    print(f'Processing folder: {folder_path}')
     try:
-        detect_cars_in_folder(folder_path)
+        detect_cars_in_folder(folder_path, args.skip_frames)
     except Exception as e:
         print(e)
     print('Video processing complete!')
+
+
